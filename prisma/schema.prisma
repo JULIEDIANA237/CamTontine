@@ -1,0 +1,567 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+enum Locale {
+  FR
+  EN
+}
+
+enum FileType {
+  AVATAR
+  RECEIPT
+  DOCUMENT
+}
+
+enum FileProvider {
+  LOCAL
+  S3
+  CLOUDINARY
+}
+
+model User {
+  id String @id @default(uuid())
+
+  email String @unique
+
+  phone String @unique
+
+  passwordHash String
+
+  firstName String
+
+  lastName String
+
+  avatarUrl String?
+
+  locale Locale @default(FR)
+
+  role UserRole @default(USER)
+
+  status UserStatus @default(ACTIVE)
+
+  emailVerified Boolean @default(false)
+
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  refreshTokens RefreshToken[]
+
+  files           File[]
+  createdTontines Tontine[] @relation("CreatedTontines")
+
+  memberships Membership[]
+
+  invitations   Invitation[]
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  reports       Report[]
+}
+
+model RefreshToken {
+  id String @id @default(uuid())
+
+  token String @unique
+
+  expiresAt DateTime
+
+  revokedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  userId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model File {
+  id String @id @default(uuid())
+
+  filename String
+
+  originalName String
+
+  mimeType String
+
+  size Int
+
+  path String
+
+  provider FileProvider
+
+  type FileType
+
+  uploadedAt DateTime @default(now())
+
+  userId String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  reports Report[]
+}
+
+model AppSetting {
+  key String @id
+
+  value String
+
+  description String?
+}
+
+enum TontineStatus {
+  DRAFT
+  RECRUITING
+  READY
+  ACTIVE
+  SUSPENDED
+  COMPLETED
+  ARCHIVED
+}
+
+enum MembershipRole {
+  MANAGER
+  TREASURER
+  SECRETARY
+  MEMBER
+}
+
+enum MembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  LEFT
+  REMOVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+model Tontine {
+  id String @id @default(uuid())
+
+  name String
+
+  description String?
+
+  contributionAmount Decimal @db.Decimal(12, 2)
+
+  frequency Frequency
+
+  minimumMembers Int
+
+  maximumMembers Int
+
+  startDate DateTime?
+
+  endDate DateTime?
+
+  status TontineStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  creatorId String
+
+  creator User @relation("CreatedTontines", fields: [creatorId], references: [id])
+
+  memberships Membership[]
+
+  invitations Invitation[]
+
+  contributionPeriods ContributionPeriod[]
+
+  payoutOrders PayoutOrder[]
+  reports      Report[]
+}
+
+model Membership {
+  id String @id @default(uuid())
+
+  userId String
+
+  tontineId String
+  role      MembershipRole @default(MEMBER)
+
+  status MembershipStatus @default(ACTIVE)
+
+  joinedAt DateTime @default(now())
+
+  leftAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tontine Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+
+  contributions Contribution[]
+
+  payouts Payout[]
+
+  payoutOrders PayoutOrder[]
+
+  @@unique([userId, tontineId])
+  @@index([userId])
+  @@index([tontineId])
+}
+
+model Invitation {
+  id String @id @default(uuid())
+
+  email String?
+
+  phone String?
+
+  token String @unique
+
+  status InvitationStatus @default(PENDING)
+
+  expiresAt DateTime
+
+  acceptedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  tontineId String
+
+  invitedById String
+
+  tontine Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+
+  invitedBy User @relation(fields: [invitedById], references: [id])
+
+  @@index([token])
+}
+
+enum ContributionPeriodStatus {
+  PENDING
+
+  OPEN
+
+  CLOSED
+
+  CANCELLED
+}
+
+model ContributionPeriod {
+  id String @id @default(uuid())
+
+  tontineId String
+
+  number Int
+
+  label String
+
+  dueDate DateTime
+
+  month Int?
+
+  year Int?
+
+  sequence Int
+
+  openedAt DateTime?
+
+  closedAt DateTime?
+
+  status ContributionPeriodStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  tontine Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+
+  contributions Contribution[]
+
+  payout Payout?
+
+  @@unique([tontineId, number])
+  @@index([tontineId])
+}
+
+enum ContributionStatus {
+  PENDING
+
+  PAID
+
+  VALIDATED
+
+  CANCELLED
+}
+
+model Contribution {
+  id String @id @default(uuid())
+
+  membershipId String
+
+  contributionPeriodId String
+
+  amount Decimal @db.Decimal(12, 2)
+
+  status ContributionStatus @default(PENDING)
+
+  paidAt DateTime?
+
+  validatedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+
+  contributionPeriod ContributionPeriod @relation(fields: [contributionPeriodId], references: [id], onDelete: Cascade)
+
+  payment Payment?
+
+  penalty Penalty?
+
+  @@unique([membershipId, contributionPeriodId])
+  @@index([membershipId])
+  @@index([contributionPeriodId])
+}
+
+enum PaymentMethod {
+  CASH
+
+  ORANGE_MONEY
+
+  MTN_MOMO
+
+  BANK_TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+
+  SUCCESS
+
+  FAILED
+
+  REFUNDED
+}
+
+model Payment {
+  id String @id @default(uuid())
+
+  contributionId String @unique
+
+  method PaymentMethod
+
+  transactionReference String?
+
+  amount Decimal @db.Decimal(12, 2)
+
+  status PaymentStatus @default(PENDING)
+
+  paidAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  contribution Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+}
+
+enum PenaltyStatus {
+  UNPAID
+
+  PAID
+
+  WAIVED
+}
+
+model Penalty {
+  id String @id @default(uuid())
+
+  contributionId String @unique
+
+  amount Decimal @db.Decimal(12, 2)
+
+  reason String?
+
+  status PenaltyStatus @default(UNPAID)
+
+  createdAt DateTime @default(now())
+
+  contribution Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+}
+
+model PayoutOrder {
+  id                   String                @id @default(uuid())
+  tontineId            String
+  membershipId         String
+  sequence             Int
+  createdAt            DateTime              @default(now())
+  tontine              Tontine               @relation(fields: [tontineId], references: [id], onDelete: Cascade)
+  membership           Membership            @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  // New fields for beneficiary turn management
+  status               BeneficiaryTurnStatus @default(SCHEDULED)
+  exchangedWithOrderId String? // reference to another order if a swap occurs
+  exchangedWithOrder   PayoutOrder?          @relation("Exchange", fields: [exchangedWithOrderId], references: [id])
+  exchangedOrders      PayoutOrder[]         @relation("Exchange")
+
+  @@unique([tontineId, sequence])
+  @@unique([tontineId, membershipId])
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum BeneficiaryTurnStatus {
+  SCHEDULED
+  COMPLETED
+  SKIPPED
+  CANCELLED
+}
+
+model Payout {
+  id String @id @default(uuid())
+
+  contributionPeriodId String @unique
+
+  beneficiaryMembershipId String
+
+  amount Decimal @db.Decimal(12, 2)
+
+  status PayoutStatus @default(PENDING)
+
+  paidAt DateTime?
+
+  note String?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  contributionPeriod ContributionPeriod @relation(fields: [contributionPeriodId], references: [id], onDelete: Cascade)
+
+  beneficiary Membership @relation(fields: [beneficiaryMembershipId], references: [id])
+}
+
+enum NotificationChannel {
+  EMAIL
+
+  SMS
+
+  WHATSAPP
+
+  PUSH
+}
+
+enum NotificationStatus {
+  PENDING
+
+  SENT
+
+  FAILED
+}
+
+model Notification {
+  id String @id @default(uuid())
+
+  userId String
+
+  title String
+
+  message String
+
+  channel NotificationChannel
+
+  status NotificationStatus @default(PENDING)
+
+  sentAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id String @id @default(uuid())
+
+  actorId String
+
+  entity String
+
+  entityId String
+
+  action String
+
+  before Json?
+
+  after Json?
+
+  ipAddress String?
+
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+}
+
+enum ReportType {
+  PDF
+
+  EXCEL
+}
+
+model Report {
+  id String @id @default(uuid())
+
+  tontineId String
+
+  type ReportType
+
+  fileId String
+
+  createdById String
+
+  generatedAt DateTime @default(now())
+
+  tontine Tontine @relation(fields: [tontineId], references: [id])
+
+  file File @relation(fields: [fileId], references: [id])
+
+  createdBy User @relation(fields: [createdById], references: [id])
+}
+
+enum Frequency {
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+}
