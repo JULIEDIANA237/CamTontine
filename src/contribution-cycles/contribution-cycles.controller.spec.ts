@@ -1,0 +1,20 @@
+import { Test, TestingModule } from '@nestjs/testing';
+import { ContributionCyclesController } from './contribution-cycles.controller';
+import { ContributionCyclesService } from './contribution-cycles.service';
+
+describe('ContributionCyclesController', () => {
+  let controller: ContributionCyclesController;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [ContributionCyclesController],
+      providers: [ContributionCyclesService],
+    }).compile();
+
+    controller = module.get<ContributionCyclesController>(ContributionCyclesController);
+  });
+
+  it('should be defined', () => {
+    expect(controller).toBeDefined();
+  });
+});
