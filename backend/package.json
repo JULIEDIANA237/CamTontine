@@ -5,6 +5,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -17,9 +20,12 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed": "prisma db seed"
   },
   "dependencies": {
+    "@casl/ability": "^7.0.1",
+    "@casl/prisma": "^2.0.2",
     "@nestjs-modules/mailer": "^2.3.7",
     "@nestjs/bull": "^11.0.4",
     "@nestjs/common": "^11.0.1",
@@ -77,6 +83,7 @@
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
+    "tsx": "^4.23.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
   },

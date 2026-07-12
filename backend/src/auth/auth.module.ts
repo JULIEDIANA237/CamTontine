@@ -8,10 +8,14 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { RolesGuard } from './guards/roles.guard';
+import { CaslAbilityFactory } from './casl/casl-ability.factory';
+import { MembershipsModule } from 'src/memberships/memberships.module';
 
 @Module({
   imports: [
     PassportModule,
+    MembershipsModule,
 
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -32,8 +36,8 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 
   controllers: [AuthController],
 
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, RolesGuard, CaslAbilityFactory,],
 
-  exports: [JwtModule],
+  exports: [JwtModule, CaslAbilityFactory,],
 })
 export class AuthModule { }
