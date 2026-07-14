@@ -1,9 +1,14 @@
 import { Module } from '@nestjs/common';
-import { TontinesService } from './tontines.service';
+
 import { TontinesController } from './tontines.controller';
+import { TontinesService } from './tontines.service';
+
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [TontinesController],
   providers: [TontinesService],
+  exports: [TontinesService],
 })
-export class TontinesModule {}
+export class TontinesModule { }
