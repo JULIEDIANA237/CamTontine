@@ -1,34 +1,154 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
-import { MembershipsService } from './memberships.service';
-import { CreateMembershipDto } from './dto/create-membership.dto';
-import { UpdateMembershipDto } from './dto/update-membership.dto';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 
-@Controller('memberships')
+import {
+  ApiBearerAuth,
+  ApiTags,
+} from '@nestjs/swagger';
+
+import { MembershipsService } from './memberships.service';
+
+import { CreateMembershipDto } from './dto/requests/create-membership.dto';
+import { QueryMembershipsDto } from './dto/requests/query-memberships.dto';
+import { UpdateMembershipRoleDto } from './dto/requests/update-membership-role.dto';
+import { UpdateMembershipStatusDto } from './dto/requests/update-membership-status.dto';
+
+@ApiTags('Memberships')
+@ApiBearerAuth()
+@Controller('tontines/:tontineId/members')
 export class MembershipsController {
-  constructor(private readonly membershipsService: MembershipsService) {}
+  constructor(
+    private readonly membershipsService: MembershipsService,
+  ) { }
 
   @Post()
-  create(@Body() createMembershipDto: CreateMembershipDto) {
-    return this.membershipsService.create(createMembershipDto);
+  create(
+    @Param(
+      'tontineId',
+      ParseUUIDPipe,
+    )
+    tontineId: string,
+
+    @Body()
+    dto: CreateMembershipDto,
+  ) {
+    return this.membershipsService.create(
+      tontineId,
+      dto,
+    );
   }
 
   @Get()
-  findAll() {
-    return this.membershipsService.findAll();
+  findAll(
+    @Param(
+      'tontineId',
+      ParseUUIDPipe,
+    )
+    tontineId: string,
+
+    @Query()
+    query: QueryMembershipsDto,
+  ) {
+    return this.membershipsService.findAll(
+      tontineId,
+      query,
+    );
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.membershipsService.findOne(+id);
+  @Get(':membershipId')
+  findOne(
+    @Param(
+      'tontineId',
+      ParseUUIDPipe,
+    )
+    tontineId: string,
+
+    @Param(
+      'membershipId',
+      ParseUUIDPipe,
+    )
+    membershipId: string,
+  ) {
+    return this.membershipsService.findOne(
+      tontineId,
+      membershipId,
+    );
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateMembershipDto: UpdateMembershipDto) {
-    return this.membershipsService.update(+id, updateMembershipDto);
+  @Patch(':membershipId/role')
+  updateRole(
+    @Param(
+      'tontineId',
+      ParseUUIDPipe,
+    )
+    tontineId: string,
+
+    @Param(
+      'membershipId',
+      ParseUUIDPipe,
+    )
+    membershipId: string,
+
+    @Body()
+    dto: UpdateMembershipRoleDto,
+  ) {
+    return this.membershipsService.updateRole(
+      tontineId,
+      membershipId,
+      dto,
+    );
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.membershipsService.remove(+id);
+  @Patch(':membershipId/status')
+  updateStatus(
+    @Param(
+      'tontineId',
+      ParseUUIDPipe,
+    )
+    tontineId: string,
+
+    @Param(
+      'membershipId',
+      ParseUUIDPipe,
+    )
+    membershipId: string,
+
+    @Body()
+    dto: UpdateMembershipStatusDto,
+  ) {
+    return this.membershipsService.updateStatus(
+      tontineId,
+      membershipId,
+      dto,
+    );
+  }
+
+  @Delete(':membershipId')
+  remove(
+    @Param(
+      'tontineId',
+      ParseUUIDPipe,
+    )
+    tontineId: string,
+
+    @Param(
+      'membershipId',
+      ParseUUIDPipe,
+    )
+    membershipId: string,
+  ) {
+    return this.membershipsService.remove(
+      tontineId,
+      membershipId,
+    );
   }
 }

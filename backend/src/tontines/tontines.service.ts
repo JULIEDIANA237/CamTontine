@@ -181,11 +181,14 @@ export class TontinesService {
         id,
       );
 
-    return {
-      success: true,
-      message: 'Statut mis à jour.',
-      data: TontineMapper.toResponse(updated!),
-    };
+      if (!updated) {
+        throw new NotFoundException('Tontine introuvable après mise à jour.');
+      }
+      return {
+        success: true,
+        message: 'Statut mis à jour.',
+      data: new TontineMapper().toResponse(updated),
+      };
   }
 
   async create(creatorId: string, dto: CreateTontineDto) {
@@ -219,13 +222,15 @@ export class TontinesService {
         },
       });
 
-      const createdTontine = await this.getTontineWithRelations(tx, tontine.id);
-
-      return {
-        success: true,
-        message: 'Tontine créée avec succès.',
-        data: TontineMapper.toResponse(createdTontine),
-      };
+        const createdTontine = await this.getTontineWithRelations(tx, tontine.id);
+        if (!createdTontine) {
+          throw new NotFoundException('Tontine introuvable après création.');
+        }
+        return {
+          success: true,
+          message: 'Tontine créée avec succès.',
+          data: new TontineMapper().toResponse(createdTontine),
+        };
     });
   }
 
@@ -249,7 +254,7 @@ export class TontinesService {
 
     return {
       success: true,
-      data: tontines.map((t) => TontineMapper.toResponse(t)),
+      data: tontines.map((t) => new TontineMapper().toResponse(t)),
       meta: {
         total,
         page,
@@ -268,7 +273,7 @@ export class TontinesService {
 
     return {
       success: true,
-      data: TontineMapper.toResponse(tontine),
+      data: new TontineMapper().toResponse(tontine),
     };
   }
 
@@ -330,13 +335,15 @@ export class TontinesService {
       },
     });
 
-    const result = await this.getTontineWithRelations(this.prisma, updated.id);
-
-    return {
-      success: true,
-      message: 'Tontine mise à jour avec succès.',
-      data: TontineMapper.toResponse(result!),
-    };
+      const result = await this.getTontineWithRelations(this.prisma, updated.id);
+      if (!result) {
+        throw new NotFoundException('Tontine introuvable après mise à jour.');
+      }
+      return {
+        success: true,
+        message: 'Tontine mise à jour avec succès.',
+        data: new TontineMapper().toResponse(result),
+      };
   }
 
   async updateStatus(
@@ -379,9 +386,7 @@ export class TontinesService {
       success: true,
       message:
         'Statut mis à jour avec succès.',
-      data: TontineMapper.toResponse(
-        updated!,
-      ),
+      data: new TontineMapper().toResponse(updated!),
     };
   }
 

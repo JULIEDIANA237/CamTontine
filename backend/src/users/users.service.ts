@@ -12,11 +12,13 @@ import { QueryUsersDto } from './dto/query-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
+import { UserMapper } from './mappers/user.mapper';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly userMapper: UserMapper,
   ) { }
 
   // Common fields to select for user queries
@@ -35,6 +37,7 @@ export class UsersService {
       lastLoginAt: true,
       createdAt: true,
       updatedAt: true,
+      passwordHash: true,
     };
   }
 
@@ -75,9 +78,7 @@ export class UsersService {
       },
       select: {
 
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
+        ...this.userSelect(),
       },
     });
 
@@ -87,7 +88,7 @@ export class UsersService {
 
     return {
       success: true,
-      data: user,
+      data: this.userMapper.toResponse(user),
     };
   }
 
@@ -126,7 +127,7 @@ export class UsersService {
     return {
       success: true,
       message: 'Profil mis à jour avec succès.',
-      data: updatedUser,
+      data: this.userMapper.toResponse(updatedUser),
     };
 
   }
@@ -150,7 +151,7 @@ export class UsersService {
 
     return {
       success: true,
-      data: users,
+      data: this.userMapper.toList(users),
       meta: {
         total,
         page,
@@ -172,19 +173,7 @@ export class UsersService {
         },
       },
       select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        avatarUrl: true,
-        locale: true,
-        role: true,
-        status: true,
-        emailVerified: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
+        ...this.userSelect(),
       },
     });
 
@@ -196,7 +185,7 @@ export class UsersService {
 
     return {
       success: true,
-      data: user,
+      data: this.userMapper.toResponse(user),
     };
   }
 
@@ -259,26 +248,14 @@ export class UsersService {
       },
       data: dto,
       select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        avatarUrl: true,
-        role: true,
-        status: true,
-        locale: true,
-        emailVerified: true,
-        lastLoginAt: true,
-        createdAt: true,
-        updatedAt: true,
+        ...this.userSelect(),
       },
     });
 
     return {
       success: true,
       message: 'Utilisateur mis à jour avec succès.',
-      data: updatedUser,
+      data: this.userMapper.toResponse(updatedUser),
     };
   }
 
@@ -309,21 +286,14 @@ export class UsersService {
         status: dto.status,
       },
       select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        role: true,
-        status: true,
-        updatedAt: true,
+        ...this.userSelect(),
       },
     });
 
     return {
       success: true,
       message: 'Statut mis à jour avec succès.',
-      data: updatedUser,
+      data: this.userMapper.toResponse(updatedUser),
     };
   }
 
@@ -362,21 +332,14 @@ export class UsersService {
         role: dto.role,
       },
       select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phone: true,
-        role: true,
-        status: true,
-        updatedAt: true,
+        ...this.userSelect(),
       },
     });
 
     return {
       success: true,
       message: 'Rôle mis à jour avec succès.',
-      data: updatedUser,
+      data: this.userMapper.toResponse(updatedUser),
     };
   }
 
@@ -420,20 +383,14 @@ export class UsersService {
         status: 'DELETED',
       },
       select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        role: true,
-        status: true,
-        updatedAt: true,
+        ...this.userSelect(),
       },
     });
 
     return {
       success: true,
       message: 'Utilisateur supprimé avec succès.',
-      data: deletedUser,
+      data: this.userMapper.toResponse(deletedUser),
     };
   }
 }
