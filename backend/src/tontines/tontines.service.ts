@@ -14,10 +14,14 @@ import { QueryTontinesDto } from './dto/query-tontines.dto';
 import { TontineMapper } from './mappers/tontine.mapper';
 import { UpdateTontineDto } from './dto/update-tontine.dto';
 import { UpdateTontineStatusDto } from './dto/update-tontine-status.dto';
+import { ApiResponse } from '../common/responses';
 
 @Injectable()
 export class TontinesService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly tontineMapper: TontineMapper,
+  ) { }
 
   /**
    * Relations à charger systématiquement pour les réponses API.
@@ -181,14 +185,14 @@ export class TontinesService {
         id,
       );
 
-      if (!updated) {
-        throw new NotFoundException('Tontine introuvable après mise à jour.');
-      }
-      return {
-        success: true,
-        message: 'Statut mis à jour.',
+    if (!updated) {
+      throw new NotFoundException('Tontine introuvable après mise à jour.');
+    }
+    return {
+      success: true,
+      message: 'Statut mis à jour.',
       data: new TontineMapper().toResponse(updated),
-      };
+    };
   }
 
   async create(creatorId: string, dto: CreateTontineDto) {
@@ -222,15 +226,17 @@ export class TontinesService {
         },
       });
 
-        const createdTontine = await this.getTontineWithRelations(tx, tontine.id);
-        if (!createdTontine) {
-          throw new NotFoundException('Tontine introuvable après création.');
-        }
-        return {
-          success: true,
-          message: 'Tontine créée avec succès.',
-          data: new TontineMapper().toResponse(createdTontine),
-        };
+      const createdTontine = await this.getTontineWithRelations(tx, tontine.id);
+      if (!createdTontine) {
+        throw new NotFoundException('Tontine introuvable après création.');
+      }
+      return ApiResponse.created(
+        this.tontineMapper.toResponse(
+          createdTontine,
+        ),
+
+        'Tontine créée avec succès.',
+      );
     });
   }
 
@@ -252,16 +258,22 @@ export class TontinesService {
       this.prisma.tontine.count({ where }),
     ]);
 
-    return {
-      success: true,
-      data: tontines.map((t) => new TontineMapper().toResponse(t)),
-      meta: {
+    return ApiResponse.paginated(
+      this.tontineMapper.toResponseList(
+        tontines,
+      ),
+
+      {
         total,
+
         page,
+
         limit,
-        totalPages: Math.ceil(total / limit),
+
+        totalPages:
+          Math.ceil(total / limit),
       },
-    };
+    );
   }
 
   async findOne(id: string) {
@@ -271,10 +283,11 @@ export class TontinesService {
       throw new NotFoundException('Tontine introuvable.');
     }
 
-    return {
-      success: true,
-      data: new TontineMapper().toResponse(tontine),
-    };
+    return ApiResponse.success(
+      this.tontineMapper.toResponse(
+        tontine,
+      ),
+    );
   }
 
   async update(id: string, dto: UpdateTontineDto) {
@@ -335,15 +348,14 @@ export class TontinesService {
       },
     });
 
-      const result = await this.getTontineWithRelations(this.prisma, updated.id);
-      if (!result) {
-        throw new NotFoundException('Tontine introuvable après mise à jour.');
-      }
-      return {
-        success: true,
-        message: 'Tontine mise à jour avec succès.',
-        data: new TontineMapper().toResponse(result),
-      };
+    const result = await this.getTontineWithRelations(this.prisma, updated.id);
+    if (!result) {
+      throw new NotFoundException('Tontine introuvable après mise à jour.');
+    }
+    return ApiResponse.updated(
+      this.tontineMapper.toResponse(result),
+      'Tontine mise à jour avec succès.',
+    );
   }
 
   async updateStatus(
@@ -382,12 +394,13 @@ export class TontinesService {
         id,
       );
 
-    return {
-      success: true,
-      message:
-        'Statut mis à jour avec succès.',
-      data: new TontineMapper().toResponse(updated!),
-    };
+    return ApiResponse.updated(
+      this.tontineMapper.toResponse(
+        tontine,
+      ),
+
+      'Statut mis à jour avec succès.',
+    );
   }
 
   async openRecruitment(id: string) {

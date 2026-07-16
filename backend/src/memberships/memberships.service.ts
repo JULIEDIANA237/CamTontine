@@ -15,15 +15,34 @@ import { CreateMembershipDto } from './dto/requests/create-membership.dto';
 import { UpdateMembershipRoleDto } from './dto/requests/update-membership-role.dto';
 import { UpdateMembershipStatusDto } from './dto/requests/update-membership-status.dto';
 import { QueryMembershipsDto } from './dto/requests/query-memberships.dto';
-import { MembershipPolicyService } from './policies/membership-policy.service';
+import { ApiResponse } from '../common/responses';
 
 @Injectable()
 export class MembershipsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly membershipMapper: MembershipMapper,
-    private readonly membershipPolicy: MembershipPolicyService,
   ) { }
+
+  /**
+   * Relations à charger systématiquement pour les réponses API.
+   */
+  private readonly membershipInclude = {
+    user: {
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    },
+    tontine: {
+      select: {
+        id: true,
+        name: true,
+      },
+    },
+  } satisfies Prisma.MembershipInclude;
 
   /**
    * Construction dynamique des filtres.
@@ -82,22 +101,7 @@ export class MembershipsService {
         id: membershipId,
         tontineId,
       },
-      include: {
-        user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-          },
-        },
-        tontine: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
+      include: this.membershipInclude,
     });
   }
 
@@ -187,22 +191,7 @@ export class MembershipsService {
             tontineId,
             role: dto.role,
           },
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            tontine: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
+          include: this.membershipInclude,
         });
 
       // 7. Passage automatique à READY
@@ -222,15 +211,10 @@ export class MembershipsService {
         });
       }
 
-      return {
-        success: true,
-        message:
-          'Membre ajouté avec succès.',
-        data:
-          this.membershipMapper.toResponse(
-            membership,
-          ),
-      };
+      return ApiResponse.created(
+        this.membershipMapper.toResponse(membership),
+        'Membre ajouté avec succès.',
+      );
     });
   }
 
@@ -265,23 +249,7 @@ export class MembershipsService {
             joinedAt: 'asc',
           },
 
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-
-            tontine: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
+          include: this.membershipInclude,
         }),
 
         this.prisma.membership.count({
@@ -289,26 +257,16 @@ export class MembershipsService {
         }),
       ]);
 
-    return {
-      success: true,
+    return ApiResponse.paginated(
+      this.membershipMapper.toList(memberships),
 
-      data:
-        this.membershipMapper.toList(
-          memberships,
-        ),
-
-      meta: {
+      {
         total,
-
         page,
-
         limit,
-
-        totalPages: Math.ceil(
-          total / limit,
-        ),
+        totalPages: Math.ceil(total / limit),
       },
-    };
+    );
   }
 
   /**
@@ -331,12 +289,11 @@ export class MembershipsService {
       );
     }
 
-    return {
-      success: true,
-      data: this.membershipMapper.toResponse(
+    return ApiResponse.success(
+      this.membershipMapper.toResponse(
         membership,
       ),
-    };
+    );
   }
 
   /**
@@ -366,29 +323,22 @@ export class MembershipsService {
       );
     }
 
-    await this.prisma.membership.update({
+    const updatedMembership = await this.prisma.membership.update({
       where: {
         id: membership.id,
       },
       data: {
         role: dto.role,
       },
+      include: this.membershipInclude,
     });
 
-    const updatedMembership =
-      await this.getMembershipWithRelations(
-        this.prisma,
-        tontineId,
-        membershipId,
-      );
-
-    return {
-      success: true,
-      message: 'Rôle mis à jour avec succès.',
-      data: this.membershipMapper.toResponse(
-        updatedMembership!,
+    return ApiResponse.updated(
+      this.membershipMapper.toResponse(
+        updatedMembership,
       ),
-    };
+      'Rôle mis à jour avec succès.',
+    );
   }
 
   /**
@@ -418,29 +368,22 @@ export class MembershipsService {
       );
     }
 
-    await this.prisma.membership.update({
+    const updatedMembership = await this.prisma.membership.update({
       where: {
         id: membership.id,
       },
       data: {
         status: dto.status,
       },
+      include: this.membershipInclude,
     });
 
-    const updatedMembership =
-      await this.getMembershipWithRelations(
-        this.prisma,
-        tontineId,
-        membershipId,
-      );
-
-    return {
-      success: true,
-      message: 'Statut mis à jour avec succès.',
-      data: this.membershipMapper.toResponse(
-        updatedMembership!,
+    return ApiResponse.updated(
+      this.membershipMapper.toResponse(
+        updatedMembership,
       ),
-    };
+      'Statut mis à jour avec succès.',
+    );
   }
 
   /**
@@ -523,7 +466,7 @@ export class MembershipsService {
       }
 
       // Suppression logique
-      await tx.membership.update({
+      const updatedMembership = await tx.membership.update({
         where: {
           id: membership.id,
         },
@@ -531,23 +474,15 @@ export class MembershipsService {
           status: 'REMOVED',
           leftAt: new Date(),
         },
+        include: this.membershipInclude,
       });
 
-      const updatedMembership =
-        await this.getMembershipWithRelations(
-          tx,
-          tontineId,
-          membershipId,
-        );
-
-      return {
-        success: true,
-        message:
-          'Le membre a été retiré avec succès.',
-        data: this.membershipMapper.toResponse(
-          updatedMembership!,
+      return ApiResponse.deleted(
+        this.membershipMapper.toResponse(
+          updatedMembership,
         ),
-      };
+        'Membre retiré de la tontine.',
+      );
     });
   }
 }

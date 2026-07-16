@@ -13,6 +13,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UserMapper } from './mappers/user.mapper';
+import { ApiResponse } from '../common/responses';
+
 
 @Injectable()
 export class UsersService {
@@ -86,10 +88,9 @@ export class UsersService {
       throw new NotFoundException('Utilisateur introuvable.');
     }
 
-    return {
-      success: true,
-      data: this.userMapper.toResponse(user),
-    };
+    return ApiResponse.success(
+      this.userMapper.toResponse(user),
+    );
   }
 
   async updateProfile(
@@ -124,11 +125,10 @@ export class UsersService {
       },
       select: this.userSelect(),
     });
-    return {
-      success: true,
-      message: 'Profil mis à jour avec succès.',
-      data: this.userMapper.toResponse(updatedUser),
-    };
+    return ApiResponse.updated(
+      this.userMapper.toResponse(updatedUser),
+      'Profil mis à jour avec succès.',
+    );
 
   }
 
@@ -149,16 +149,20 @@ export class UsersService {
 
     const total = await this.prisma.user.count({ where });
 
-    return {
-      success: true,
-      data: this.userMapper.toList(users),
-      meta: {
+    return ApiResponse.paginated(
+      this.userMapper.toList(users),
+
+      {
         total,
+
         page,
+
         limit,
-        totalPages: Math.ceil(total / limit),
+
+        totalPages:
+          Math.ceil(total / limit),
       },
-    };
+    );
   }
 
 
@@ -183,10 +187,9 @@ export class UsersService {
       );
     }
 
-    return {
-      success: true,
-      data: this.userMapper.toResponse(user),
-    };
+    return ApiResponse.success(
+      this.userMapper.toResponse(user),
+    );
   }
 
   async update(
@@ -252,11 +255,10 @@ export class UsersService {
       },
     });
 
-    return {
-      success: true,
-      message: 'Utilisateur mis à jour avec succès.',
-      data: this.userMapper.toResponse(updatedUser),
-    };
+    return ApiResponse.updated(
+      this.userMapper.toResponse(updatedUser),
+      'Utilisateur mis à jour avec succès.',
+    );
   }
 
   async updateStatus(
@@ -290,11 +292,10 @@ export class UsersService {
       },
     });
 
-    return {
-      success: true,
-      message: 'Statut mis à jour avec succès.',
-      data: this.userMapper.toResponse(updatedUser),
-    };
+    return ApiResponse.updated(
+      this.userMapper.toResponse(updatedUser),
+      'Statut mis à jour avec succès.',
+    );
   }
 
   async updateRole(
@@ -336,11 +337,10 @@ export class UsersService {
       },
     });
 
-    return {
-      success: true,
-      message: 'Rôle mis à jour avec succès.',
-      data: this.userMapper.toResponse(updatedUser),
-    };
+    return ApiResponse.updated(
+      this.userMapper.toResponse(updatedUser),
+      'Rôle mis à jour avec succès.',
+    );
   }
 
   async delete(
@@ -387,10 +387,9 @@ export class UsersService {
       },
     });
 
-    return {
-      success: true,
-      message: 'Utilisateur supprimé avec succès.',
-      data: this.userMapper.toResponse(deletedUser),
-    };
+    return ApiResponse.deleted(
+      this.userMapper.toResponse(deletedUser),
+      'Utilisateur supprimé avec succès.',
+    );
   }
 }
