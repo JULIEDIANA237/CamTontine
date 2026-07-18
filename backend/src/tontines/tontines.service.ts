@@ -15,12 +15,15 @@ import { TontineMapper } from './mappers/tontine.mapper';
 import { UpdateTontineDto } from './dto/update-tontine.dto';
 import { UpdateTontineStatusDto } from './dto/update-tontine-status.dto';
 import { ApiResponse } from '../common/responses';
+import { TontineMessages } from '../common/messages';
+import { TontinesLoader } from '../shared/loaders/tontines.loader';
 
 @Injectable()
 export class TontinesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tontineMapper: TontineMapper,
+    private readonly tontinesLoader: TontinesLoader,
   ) { }
 
   /**
@@ -103,10 +106,8 @@ export class TontinesService {
     db: Prisma.TransactionClient | PrismaService,
     tontineId: string,
   ) {
-    return db.tontine.findUnique({
-      where: { id: tontineId },
-      include: this.tontineInclude,
-    });
+    // delegate to loader for consistency
+    return this.tontinesLoader.byId(tontineId);
   }
 
   private readonly statusTransitions: Record<
@@ -161,7 +162,7 @@ export class TontinesService {
 
     if (!tontine) {
       throw new NotFoundException(
-        'Tontine introuvable.',
+        TontineMessages.NOT_FOUND,
       );
     }
 
@@ -186,20 +187,19 @@ export class TontinesService {
       );
 
     if (!updated) {
-      throw new NotFoundException('Tontine introuvable après mise à jour.');
+      throw new NotFoundException(TontineMessages.NOT_FOUND);
     }
-    return {
-      success: true,
-      message: 'Statut mis à jour.',
-      data: new TontineMapper().toResponse(updated),
-    };
+    return ApiResponse.updated(
+      this.tontineMapper.toResponse(updated),
+      TontineMessages.UPDATED,
+    );
   }
 
   async create(creatorId: string, dto: CreateTontineDto) {
     return this.prisma.$transaction(async (tx) => {
       if (dto.minimumMembers > dto.maximumMembers) {
         throw new BadRequestException(
-          'Le nombre maximum de membres doit être supérieur ou égal au minimum.',
+          TontineMessages.INVALID_MEMBER_COUNT,
         );
       }
 
@@ -228,14 +228,14 @@ export class TontinesService {
 
       const createdTontine = await this.getTontineWithRelations(tx, tontine.id);
       if (!createdTontine) {
-        throw new NotFoundException('Tontine introuvable après création.');
+        throw new NotFoundException(TontineMessages.NOT_FOUND);
       }
       return ApiResponse.created(
         this.tontineMapper.toResponse(
           createdTontine,
         ),
 
-        'Tontine créée avec succès.',
+        TontineMessages.CREATED,
       );
     });
   }
@@ -247,15 +247,9 @@ export class TontinesService {
 
     const where = this.buildWhereClause(query);
 
-    const [tontines, total] = await this.prisma.$transaction([
-      this.prisma.tontine.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: this.tontineInclude, // <-- utilisation du helper centralisé
-      }),
-      this.prisma.tontine.count({ where }),
+    const [tontines, total] = await Promise.all([
+      this.tontinesLoader.findMany(where, skip, limit),
+      this.tontinesLoader.count(where),
     ]);
 
     return ApiResponse.paginated(
@@ -280,7 +274,7 @@ export class TontinesService {
     const tontine = await this.getTontineWithRelations(this.prisma, id);
 
     if (!tontine || tontine.status === 'ARCHIVED') {
-      throw new NotFoundException('Tontine introuvable.');
+      throw new NotFoundException(TontineMessages.NOT_FOUND);
     }
 
     return ApiResponse.success(
@@ -294,7 +288,7 @@ export class TontinesService {
     const tontine = await this.getTontineWithRelations(this.prisma, id);
 
     if (!tontine) {
-      throw new NotFoundException('Tontine introuvable.');
+      throw new NotFoundException(TontineMessages.NOT_FOUND);
     }
 
     this.validateTontineCanBeUpdated(tontine.status);
@@ -350,11 +344,11 @@ export class TontinesService {
 
     const result = await this.getTontineWithRelations(this.prisma, updated.id);
     if (!result) {
-      throw new NotFoundException('Tontine introuvable après mise à jour.');
+      throw new NotFoundException(TontineMessages.NOT_FOUND);
     }
     return ApiResponse.updated(
       this.tontineMapper.toResponse(result),
-      'Tontine mise à jour avec succès.',
+      TontineMessages.UPDATED,
     );
   }
 
@@ -370,7 +364,7 @@ export class TontinesService {
 
     if (!tontine) {
       throw new NotFoundException(
-        'Tontine introuvable.',
+        TontineMessages.NOT_FOUND,
       );
     }
 
@@ -396,10 +390,9 @@ export class TontinesService {
 
     return ApiResponse.updated(
       this.tontineMapper.toResponse(
-        tontine,
+        updated ?? tontine,
       ),
-
-      'Statut mis à jour avec succès.',
+      TontineMessages.UPDATED,
     );
   }
 
@@ -426,7 +419,7 @@ export class TontinesService {
 
     if (!tontine) {
       throw new NotFoundException(
-        'Tontine introuvable.',
+        TontineMessages.NOT_FOUND,
       );
     }
 

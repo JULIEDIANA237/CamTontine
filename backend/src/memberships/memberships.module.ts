@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { SharedModule } from '../shared/shared.module';
 import { MembershipsService } from './memberships.service';
 import { MembershipsController } from './memberships.controller';
 import { MembershipMapper } from './mappers/membership.mapper';
@@ -8,6 +9,7 @@ import { MembershipPolicyService } from './policies/membership-policy.service';
 
 
 @Module({
+  imports: [SharedModule],
   controllers: [MembershipsController],
   providers: [
     MembershipsService,

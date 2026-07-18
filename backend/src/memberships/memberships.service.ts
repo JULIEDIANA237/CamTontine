@@ -16,12 +16,15 @@ import { UpdateMembershipRoleDto } from './dto/requests/update-membership-role.d
 import { UpdateMembershipStatusDto } from './dto/requests/update-membership-status.dto';
 import { QueryMembershipsDto } from './dto/requests/query-memberships.dto';
 import { ApiResponse } from '../common/responses';
+import { MembershipsLoader } from '../shared/loaders/memberships.loader';
+import { MembershipMessages, TontineMessages, UserMessages } from '../common/messages';
 
 @Injectable()
 export class MembershipsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly membershipMapper: MembershipMapper,
+    private readonly membershipsLoader: MembershipsLoader,
   ) { }
 
   /**
@@ -96,13 +99,8 @@ export class MembershipsService {
     tontineId: string,
     membershipId: string,
   ) {
-    return db.membership.findFirst({
-      where: {
-        id: membershipId,
-        tontineId,
-      },
-      include: this.membershipInclude,
-    });
+    // Use loader to fetch membership with relations
+    return this.membershipsLoader.byId(membershipId);
   }
 
   /**
@@ -122,7 +120,7 @@ export class MembershipsService {
 
       if (!tontine) {
         throw new NotFoundException(
-          'Tontine introuvable.',
+          TontineMessages.NOT_FOUND,
         );
       }
 
@@ -145,7 +143,7 @@ export class MembershipsService {
 
       if (!user || user.status === 'DELETED') {
         throw new NotFoundException(
-          'Utilisateur introuvable.',
+          UserMessages.NOT_FOUND,
         );
       }
 
@@ -162,7 +160,7 @@ export class MembershipsService {
 
       if (existingMembership) {
         throw new ConflictException(
-          'Cet utilisateur est déjà membre de cette tontine.',
+          MembershipMessages.ALREADY_EXISTS,
         );
       }
 
@@ -179,7 +177,7 @@ export class MembershipsService {
         memberCount >= tontine.maximumMembers
       ) {
         throw new BadRequestException(
-          'La tontine a atteint son nombre maximal de membres.',
+          MembershipMessages.LIMIT_REACHED,
         );
       }
 
@@ -213,7 +211,7 @@ export class MembershipsService {
 
       return ApiResponse.created(
         this.membershipMapper.toResponse(membership),
-        'Membre ajouté avec succès.',
+        MembershipMessages.CREATED,
       );
     });
   }
@@ -236,26 +234,10 @@ export class MembershipsService {
       query,
     );
 
-    const [memberships, total] =
-      await this.prisma.$transaction([
-        this.prisma.membership.findMany({
-          where,
-
-          skip,
-
-          take: limit,
-
-          orderBy: {
-            joinedAt: 'asc',
-          },
-
-          include: this.membershipInclude,
-        }),
-
-        this.prisma.membership.count({
-          where,
-        }),
-      ]);
+    const [memberships, total] = await Promise.all([
+      this.membershipsLoader.findMany(where, skip, limit),
+      this.membershipsLoader.count(where),
+    ]);
 
     return ApiResponse.paginated(
       this.membershipMapper.toList(memberships),
@@ -285,7 +267,7 @@ export class MembershipsService {
 
     if (!membership) {
       throw new NotFoundException(
-        'Membre introuvable.',
+        MembershipMessages.NOT_FOUND,
       );
     }
 
@@ -313,13 +295,13 @@ export class MembershipsService {
 
     if (!membership) {
       throw new NotFoundException(
-        'Membre introuvable.',
+        MembershipMessages.NOT_FOUND,
       );
     }
 
     if (membership.role === dto.role) {
       throw new ConflictException(
-        'Ce membre possède déjà ce rôle.',
+        MembershipMessages.ROLE_ALREADY_SET,
       );
     }
 
@@ -337,7 +319,7 @@ export class MembershipsService {
       this.membershipMapper.toResponse(
         updatedMembership,
       ),
-      'Rôle mis à jour avec succès.',
+      MembershipMessages.UPDATED,
     );
   }
 
@@ -358,13 +340,13 @@ export class MembershipsService {
 
     if (!membership) {
       throw new NotFoundException(
-        'Membre introuvable.',
+        MembershipMessages.NOT_FOUND,
       );
     }
 
     if (membership.status === dto.status) {
       throw new ConflictException(
-        'Ce membre possède déjà ce statut.',
+        MembershipMessages.STATUS_ALREADY_SET,
       );
     }
 
@@ -382,7 +364,7 @@ export class MembershipsService {
       this.membershipMapper.toResponse(
         updatedMembership,
       ),
-      'Statut mis à jour avec succès.',
+      MembershipMessages.UPDATED,
     );
   }
 
@@ -403,7 +385,7 @@ export class MembershipsService {
 
       if (!membership) {
         throw new NotFoundException(
-          'Membre introuvable.',
+          MembershipMessages.NOT_FOUND,
         );
       }
 
@@ -430,7 +412,7 @@ export class MembershipsService {
 
       if (!tontine) {
         throw new NotFoundException(
-          'Tontine introuvable.',
+          TontineMessages.NOT_FOUND,
         );
       }
 
@@ -481,7 +463,7 @@ export class MembershipsService {
         this.membershipMapper.toResponse(
           updatedMembership,
         ),
-        'Membre retiré de la tontine.',
+        MembershipMessages.REMOVED,
       );
     });
   }

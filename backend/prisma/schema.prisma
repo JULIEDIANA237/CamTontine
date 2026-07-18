@@ -194,7 +194,7 @@ model Tontine {
   invitations Invitation[]
 
   contributionPeriods ContributionPeriod[]
-
+  cycles Cycle[]
   payoutOrders PayoutOrder[]
   reports      Report[]
 }
@@ -564,4 +564,48 @@ enum Frequency {
   MONTHLY
   BIMONTHLY
   QUARTERLY
+}
+
+enum CycleStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+model Cycle {
+  id String @id @default(cuid())
+
+  cycleNumber Int
+
+  startDate DateTime
+
+  endDate DateTime
+
+  expectedAmount Decimal @db.Decimal(12,2)
+
+  collectedAmount Decimal @default(0) @db.Decimal(12,2)
+
+  status ContributionCycleStatus @default(DRAFT)
+
+  openedAt DateTime?
+
+  closedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  updatedAt DateTime @updatedAt
+
+  tontineId String
+
+  tontine Tontine
+      @relation(fields:[tontineId], references:[id], onDelete:Cascade)
+
+  contributions Contribution[]
+
+  @@unique([tontineId, cycleNumber])
+
+  @@index([tontineId])
+
+  @@index([status])
 }

@@ -11,6 +11,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { RolesGuard } from './guards/roles.guard';
 import { CaslAbilityFactory } from './casl/casl-ability.factory';
 import { MembershipsModule } from 'src/memberships/memberships.module';
+import { UserMapper } from '../users/mappers/user.mapper';
 
 @Module({
   imports: [
@@ -36,7 +37,7 @@ import { MembershipsModule } from 'src/memberships/memberships.module';
 
   controllers: [AuthController],
 
-  providers: [AuthService, JwtStrategy, RolesGuard, CaslAbilityFactory,],
+  providers: [AuthService, JwtStrategy, RolesGuard, CaslAbilityFactory, UserMapper],
 
   exports: [JwtModule, CaslAbilityFactory,],
 })

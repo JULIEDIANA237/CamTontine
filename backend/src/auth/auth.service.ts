@@ -16,6 +16,12 @@ import { RegisterDto } from './dto/register.dto';
 
 import { User } from '@prisma/client';
 
+import { UserMapper } from '../users/mappers/user.mapper';
+
+import { ApiResponse } from '../common/responses';
+
+import { AuthMessages, UserMessages } from '../common/messages';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -24,6 +30,8 @@ export class AuthService {
     private readonly jwtService: JwtService,
 
     private readonly configService: ConfigService,
+
+    private readonly userMapper: UserMapper,
   ) { }
 
   private async hashPassword(password: string): Promise<string> {
@@ -118,8 +126,13 @@ export class AuthService {
     });
 
     if (existingUser) {
+      if (existingUser.email === dto.email) {
+        throw new ConflictException(
+          UserMessages.EMAIL_ALREADY_USED,
+        );
+      }
       throw new ConflictException(
-        'User already exists with this email or phone',
+        UserMessages.PHONE_ALREADY_USED,
       );
     }
 
@@ -146,24 +159,14 @@ export class AuthService {
     await this.saveRefreshToken(user.id, refreshToken);
 
     // 6. Retour propre API
-    return {
-      success: true,
-      message: 'User registered successfully',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          phone: user.phone,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          locale: user.locale,
-          createdAt: user.createdAt,
-        },
+    return ApiResponse.created(
+      {
+        user: this.userMapper.toResponse(user),
         accessToken,
         refreshToken,
       },
-    };
+      AuthMessages.REGISTER_SUCCESS,
+    );
   }
 
   async login(dto: { email: string; password: string }) {
@@ -173,12 +176,16 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        AuthMessages.INVALID_CREDENTIALS,
+      );
     }
 
     // 2. Vérifier statut
     if (user.status !== 'ACTIVE') {
-      throw new UnauthorizedException('User account is not active');
+      throw new UnauthorizedException(
+        AuthMessages.ACCOUNT_DISABLED,
+      );
     }
 
     // 3. Vérifier mot de passe
@@ -188,7 +195,9 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        AuthMessages.INVALID_CREDENTIALS,
+      );
     }
 
     // 4. Générer tokens
@@ -210,23 +219,14 @@ export class AuthService {
     });
 
     // 8. Réponse API
-    return {
-      success: true,
-      message: 'Login successful',
-      data: {
-        user: {
-          id: user.id,
-          email: user.email,
-          phone: user.phone,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          locale: user.locale,
-        },
+    return ApiResponse.success(
+      {
+        user: this.userMapper.toResponse(user),
         accessToken,
         refreshToken,
       },
-    };
+      AuthMessages.LOGIN_SUCCESS,
+    );
   }
 
   async refresh(refreshToken: string) {
@@ -247,7 +247,9 @@ export class AuthService {
       });
 
       if (!user) {
-        throw new UnauthorizedException('User not found');
+        throw new UnauthorizedException(
+          UserMessages.NOT_FOUND,
+        );
       }
 
       // 3. Récupérer refresh tokens stockés
@@ -259,7 +261,9 @@ export class AuthService {
       });
 
       if (!storedTokens.length) {
-        throw new UnauthorizedException('No valid refresh tokens');
+        throw new UnauthorizedException(
+          AuthMessages.INVALID_REFRESH_TOKEN,
+        );
       }
 
       // 4. Vérifier correspondance avec hash
@@ -287,7 +291,9 @@ export class AuthService {
       }
 
       if (!isValid) {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new UnauthorizedException(
+          AuthMessages.INVALID_REFRESH_TOKEN,
+        );
       }
 
       // 6. Générer nouveaux tokens
@@ -304,16 +310,17 @@ export class AuthService {
       );
 
       // 8. Retour
-      return {
-        success: true,
-        message: 'Token refreshed successfully',
-        data: {
+      return ApiResponse.success(
+        {
           accessToken: newAccessToken,
           refreshToken: newRefreshToken,
         },
-      };
+        AuthMessages.REFRESH_SUCCESS,
+      );
     } catch (error) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException(
+        AuthMessages.INVALID_REFRESH_TOKEN,
+      );
     }
   }
 
@@ -324,40 +331,27 @@ export class AuthService {
       },
     });
 
-    return {
-      success: true,
-      message: 'Session fully cleared',
-    };
+    return ApiResponse.success(
+      null,
+      AuthMessages.LOGOUT_SUCCESS,
+    );
   }
 
   async me(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        phone: true,
-        firstName: true,
-        lastName: true,
-        avatarUrl: true,
-        role: true,
-        locale: true,
-        status: true,
-        emailVerified: true,
-        lastLoginAt: true,
-        createdAt: true,
-      },
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(
+        UserMessages.NOT_FOUND,
+      );
     }
 
-    return {
-      success: true,
-      message: 'User profile fetched successfully',
-      data: user,
-    };
+    return ApiResponse.success(
+      this.userMapper.toResponse(user),
+      UserMessages.FOUND,
+    );
   }
 
   async changePassword(
@@ -370,7 +364,9 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException(
+        UserMessages.NOT_FOUND,
+      );
     }
 
     // 2. Vérifier ancien mot de passe
@@ -380,7 +376,9 @@ export class AuthService {
     );
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Old password is incorrect');
+      throw new UnauthorizedException(
+        AuthMessages.INVALID_CREDENTIALS,
+      );
     }
 
     // 3. Hash nouveau mot de passe
@@ -399,10 +397,9 @@ export class AuthService {
     // 5. Révoquer tous les refresh tokens (sécurité)
     await this.revokeAllRefreshTokens(userId);
 
-    return {
-      success: true,
-      message: 'Password changed successfully',
-    };
+    return ApiResponse.updated(
+      null,
+      UserMessages.UPDATED,
+    );
   }
-
 }

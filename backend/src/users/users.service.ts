@@ -14,6 +14,8 @@ import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { UpdateUserRoleDto } from './dto/update-user-role.dto';
 import { UserMapper } from './mappers/user.mapper';
 import { ApiResponse } from '../common/responses';
+import { UsersLoader } from '../shared/loaders/users.loader';
+import { UserMessages } from '../common/messages';
 
 
 @Injectable()
@@ -21,6 +23,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly userMapper: UserMapper,
+    private readonly usersLoader: UsersLoader,
   ) { }
 
   // Common fields to select for user queries
@@ -74,18 +77,10 @@ export class UsersService {
   }
 
   async getCurrentUser(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id: userId,
-      },
-      select: {
-
-        ...this.userSelect(),
-      },
-    });
+    const user = await this.usersLoader.byId(userId);
 
     if (!user) {
-      throw new NotFoundException('Utilisateur introuvable.');
+      throw new NotFoundException(UserMessages.NOT_FOUND);
     }
 
     return ApiResponse.success(
@@ -109,7 +104,7 @@ export class UsersService {
 
       if (existingPhone) {
         throw new ConflictException(
-          'Ce numéro de téléphone est déjà utilisé.',
+          UserMessages.PHONE_ALREADY_USED,
         );
       }
     }
@@ -127,7 +122,7 @@ export class UsersService {
     });
     return ApiResponse.updated(
       this.userMapper.toResponse(updatedUser),
-      'Profil mis à jour avec succès.',
+      UserMessages.UPDATED,
     );
 
   }
@@ -169,21 +164,11 @@ export class UsersService {
 
 
   async findOne(id: string) {
-    const user = await this.prisma.user.findUnique({
-      where: {
-        id,
-        status: {
-          not: 'DELETED',
-        },
-      },
-      select: {
-        ...this.userSelect(),
-      },
-    });
+    const user = await this.usersLoader.activeById(id);
 
     if (!user) {
       throw new NotFoundException(
-        'Utilisateur introuvable.',
+        UserMessages.NOT_FOUND,
       );
     }
 
@@ -223,7 +208,7 @@ export class UsersService {
 
       if (existingEmail) {
         throw new ConflictException(
-          'Cet email est déjà utilisé.',
+          UserMessages.EMAIL_ALREADY_USED,
         );
       }
     }
@@ -240,7 +225,7 @@ export class UsersService {
 
       if (existingPhone) {
         throw new ConflictException(
-          'Ce numéro est déjà utilisé.',
+          UserMessages.PHONE_ALREADY_USED,
         );
       }
     }
@@ -257,7 +242,7 @@ export class UsersService {
 
     return ApiResponse.updated(
       this.userMapper.toResponse(updatedUser),
-      'Utilisateur mis à jour avec succès.',
+      UserMessages.UPDATED,
     );
   }
 
@@ -276,7 +261,7 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException(
-        'Utilisateur introuvable.',
+        UserMessages.NOT_FOUND,
       );
     }
 
@@ -294,7 +279,7 @@ export class UsersService {
 
     return ApiResponse.updated(
       this.userMapper.toResponse(updatedUser),
-      'Statut mis à jour avec succès.',
+      UserMessages.UPDATED,
     );
   }
 
@@ -306,7 +291,7 @@ export class UsersService {
     // Empêcher un administrateur de modifier son propre rôle
     if (currentUserId === id) {
       throw new ForbiddenException(
-        'Vous ne pouvez pas modifier votre propre rôle.',
+        UserMessages.CANNOT_DELETE_YOURSELF,
       );
     }
 
@@ -321,7 +306,7 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException(
-        'Utilisateur introuvable.',
+        UserMessages.NOT_FOUND,
       );
     }
 
@@ -339,7 +324,7 @@ export class UsersService {
 
     return ApiResponse.updated(
       this.userMapper.toResponse(updatedUser),
-      'Rôle mis à jour avec succès.',
+      UserMessages.UPDATED,
     );
   }
 
@@ -350,7 +335,7 @@ export class UsersService {
     // Empêcher un administrateur de se supprimer lui-même
     if (currentUserId === id) {
       throw new ForbiddenException(
-        'Vous ne pouvez pas supprimer votre propre compte.',
+        UserMessages.CANNOT_DELETE_YOURSELF,
       );
     }
 
@@ -365,7 +350,7 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException(
-        'Utilisateur introuvable.',
+        UserMessages.NOT_FOUND,
       );
     }
 
@@ -389,7 +374,7 @@ export class UsersService {
 
     return ApiResponse.deleted(
       this.userMapper.toResponse(deletedUser),
-      'Utilisateur supprimé avec succès.',
+      UserMessages.DELETED,
     );
   }
 }
