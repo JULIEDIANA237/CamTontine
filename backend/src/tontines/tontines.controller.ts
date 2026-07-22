@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -10,8 +11,8 @@ import {
 } from '@nestjs/common';
 
 import {
-  ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
 
@@ -21,15 +22,25 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 import type { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 
-import { CreateTontineDto } from './dto/create-tontine.dto';
+import {
+  ApiAuth,
+  ApiCreated,
+  ApiPagination,
+  ApiStandardResponses,
+  ApiUpdated,
+} from '../common/swagger';
 
 import { TontinesService } from './tontines.service';
+
+import { CreateTontineDto } from './dto/create-tontine.dto';
 import { QueryTontinesDto } from './dto/query-tontines.dto';
 import { UpdateTontineDto } from './dto/update-tontine.dto';
-import { UpdateTontineStatusDto } from './dto/update-tontine-status.dto';
+
+import { TontineResponseDto } from './dto/responses/tontine-response.dto';
+import { TontineListItemDto } from './dto/responses/tontine-list-item.dto';
 
 @ApiTags('Tontines')
-@ApiBearerAuth('access-token')
+@ApiAuth()
 @UseGuards(JwtAuthGuard)
 @Controller('tontines')
 export class TontinesController {
@@ -41,9 +52,20 @@ export class TontinesController {
   @ApiOperation({
     summary: 'Créer une tontine',
   })
+  @ApiCreated(
+    TontineResponseDto,
+    'Tontine créée avec succès.',
+  )
+  @ApiStandardResponses({
+    badRequest: 'Données invalides.',
+    conflict: 'Une tontine identique existe déjà.',
+  })
   create(
-    @CurrentUser() user: JwtPayload,
-    @Body() dto: CreateTontineDto,
+    @CurrentUser()
+    user: JwtPayload,
+
+    @Body()
+    dto: CreateTontineDto,
   ) {
     return this.tontinesService.create(
       user.sub,
@@ -55,29 +77,77 @@ export class TontinesController {
   @ApiOperation({
     summary: 'Lister les tontines',
   })
+  @ApiPagination(
+    TontineListItemDto,
+    'Liste paginée des tontines.',
+  )
+  @ApiStandardResponses()
   findAll(
-    @Query() query: QueryTontinesDto,
+    @Query()
+    query: QueryTontinesDto,
   ) {
-    return this.tontinesService.findAll(query);
+    return this.tontinesService.findAll(
+      query,
+    );
   }
 
   @Get(':id')
   @ApiOperation({
-    summary: 'Récupérer une tontine',
+    summary: 'Obtenir une tontine',
+  })
+  @ApiParam({
+    name: 'id',
+    description:
+      'Identifiant UUID de la tontine',
+  })
+  @ApiUpdated(
+    TontineResponseDto,
+    'Détails de la tontine.',
+  )
+  @ApiStandardResponses({
+    notFound:
+      'Tontine introuvable.',
   })
   findOne(
-    @Param('id') id: string,
+    @Param(
+      'id',
+      ParseUUIDPipe,
+    )
+    id: string,
   ) {
-    return this.tontinesService.findOne(id);
+    return this.tontinesService.findOne(
+      id,
+    );
   }
 
+  @Patch(':id')
   @ApiOperation({
     summary: 'Mettre à jour une tontine',
   })
-  @Patch(':id')
+  @ApiParam({
+    name: 'id',
+    description:
+      'Identifiant UUID de la tontine',
+  })
+  @ApiUpdated(
+    TontineResponseDto,
+    'Tontine mise à jour.',
+  )
+  @ApiStandardResponses({
+    badRequest:
+      'Les données sont invalides.',
+    notFound:
+      'Tontine introuvable.',
+  })
   update(
-    @Param('id') id: string,
-    @Body() dto: UpdateTontineDto,
+    @Param(
+      'id',
+      ParseUUIDPipe,
+    )
+    id: string,
+
+    @Body()
+    dto: UpdateTontineDto,
   ) {
     return this.tontinesService.update(
       id,
@@ -85,64 +155,183 @@ export class TontinesController {
     );
   }
 
-  @Post(':id/open-recruitment')
+  @Patch(':id/open-recruitment')
   @ApiOperation({
-    summary: 'Ouvrir le recrutement d’une tontine',
+    summary:
+      'Ouvrir le recrutement',
+  })
+  @ApiParam({
+    name: 'id',
+    description:
+      'Identifiant UUID de la tontine',
+  })
+  @ApiUpdated(
+    TontineResponseDto,
+    'Recrutement ouvert.',
+  )
+  @ApiStandardResponses({
+    notFound:
+      'Tontine introuvable.',
   })
   openRecruitment(
-    @Param('id') id: string,
+    @Param(
+      'id',
+      ParseUUIDPipe,
+    )
+    id: string,
   ) {
-    return this.tontinesService.openRecruitment(id);
+    return this.tontinesService.openRecruitment(
+      id,
+    );
   }
 
-  @Post(':id/start')
+  @Patch(':id/start')
   @ApiOperation({
-    summary: 'Démarrer une tontine',
+    summary:
+      'Démarrer la tontine',
+  })
+  @ApiParam({
+    name: 'id',
+    description:
+      'Identifiant UUID de la tontine',
+  })
+  @ApiUpdated(
+    TontineResponseDto,
+    'Tontine démarrée.',
+  )
+  @ApiStandardResponses({
+    notFound:
+      'Tontine introuvable.',
   })
   start(
-    @Param('id') id: string,
+    @Param(
+      'id',
+      ParseUUIDPipe,
+    )
+    id: string,
   ) {
-    return this.tontinesService.start(id);
+    return this.tontinesService.start(
+      id,
+    );
   }
 
-  @Post(':id/suspend')
+  @Patch(':id/suspend')
   @ApiOperation({
-    summary: 'Suspendre une tontine',
+    summary:
+      'Suspendre la tontine',
+  })
+  @ApiParam({
+    name: 'id',
+    description:
+      'Identifiant UUID de la tontine',
+  })
+  @ApiUpdated(
+    TontineResponseDto,
+    'Tontine suspendue.',
+  )
+  @ApiStandardResponses({
+    notFound:
+      'Tontine introuvable.',
   })
   suspend(
-    @Param('id') id: string,
+    @Param(
+      'id',
+      ParseUUIDPipe,
+    )
+    id: string,
   ) {
-    return this.tontinesService.suspend(id);
+    return this.tontinesService.suspend(
+      id,
+    );
   }
 
-  @Post(':id/resume')
+  @Patch(':id/resume')
   @ApiOperation({
-    summary: 'Reprendre une tontine',
+    summary:
+      'Reprendre la tontine',
+  })
+  @ApiParam({
+    name: 'id',
+    description:
+      'Identifiant UUID de la tontine',
+  })
+  @ApiUpdated(
+    TontineResponseDto,
+    'Tontine reprise.',
+  )
+  @ApiStandardResponses({
+    notFound:
+      'Tontine introuvable.',
   })
   resume(
-    @Param('id') id: string,
+    @Param(
+      'id',
+      ParseUUIDPipe,
+    )
+    id: string,
   ) {
-    return this.tontinesService.resume(id);
+    return this.tontinesService.resume(
+      id,
+    );
   }
 
-  @Post(':id/complete')
+  @Patch(':id/complete')
   @ApiOperation({
-    summary: 'Terminer une tontine',
+    summary:
+      'Terminer la tontine',
+  })
+  @ApiParam({
+    name: 'id',
+    description:
+      'Identifiant UUID de la tontine',
+  })
+  @ApiUpdated(
+    TontineResponseDto,
+    'Tontine terminée.',
+  )
+  @ApiStandardResponses({
+    notFound:
+      'Tontine introuvable.',
   })
   complete(
-    @Param('id') id: string,
+    @Param(
+      'id',
+      ParseUUIDPipe,
+    )
+    id: string,
   ) {
-    return this.tontinesService.complete(id);
+    return this.tontinesService.complete(
+      id,
+    );
   }
 
-  @Post(':id/archive')
+  @Patch(':id/archive')
   @ApiOperation({
-    summary: 'Archiver une tontine',
+    summary:
+      'Archiver la tontine',
+  })
+  @ApiParam({
+    name: 'id',
+    description:
+      'Identifiant UUID de la tontine',
+  })
+  @ApiUpdated(
+    TontineResponseDto,
+    'Tontine archivée.',
+  )
+  @ApiStandardResponses({
+    notFound:
+      'Tontine introuvable.',
   })
   archive(
-    @Param('id') id: string,
+    @Param(
+      'id',
+      ParseUUIDPipe,
+    )
+    id: string,
   ) {
-    return this.tontinesService.archive(id);
+    return this.tontinesService.archive(
+      id,
+    );
   }
-
 }

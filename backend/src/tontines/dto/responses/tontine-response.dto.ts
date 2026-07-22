@@ -1,25 +1,11 @@
+import { ApiProperty } from '@nestjs/swagger';
+
 import {
     Frequency,
     TontineStatus,
 } from '@prisma/client';
 
-import {
-    ApiProperty,
-} from '@nestjs/swagger';
-
-export class CreatorResponseDto {
-    @ApiProperty()
-    id: string;
-
-    @ApiProperty()
-    firstName: string;
-
-    @ApiProperty()
-    lastName: string;
-
-    @ApiProperty()
-    email: string;
-}
+import { BasicUserDto } from '../../../common/dto/responses/basic-user.dto';
 
 export class TontineResponseDto {
     @ApiProperty()
@@ -69,9 +55,9 @@ export class TontineResponseDto {
     updatedAt: Date;
 
     @ApiProperty({
-        type: CreatorResponseDto,
+        type: () => BasicUserDto,
     })
-    creator: CreatorResponseDto;
+    creator: BasicUserDto;
 
     @ApiProperty()
     memberCount: number;

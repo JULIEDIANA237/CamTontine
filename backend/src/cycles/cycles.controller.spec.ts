@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ContributionCyclesController } from './contribution-cycles.controller';
-import { ContributionCyclesService } from './contribution-cycles.service';
+import { ContributionCyclesController } from './cycles.controller';
+import { ContributionCyclesService } from './cycles.service';
 
 describe('ContributionCyclesController', () => {
   let controller: ContributionCyclesController;

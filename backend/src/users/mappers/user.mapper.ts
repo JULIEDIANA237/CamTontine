@@ -6,13 +6,27 @@ import { BaseMapper } from '../../common/mappers';
 
 import { UserResponseDto } from '../dto/responses/user-response.dto';
 import { UserListItemDto } from '../dto/responses/user-list-item.dto';
+import { BasicUserDto } from '../../common/dto/responses/basic-user.dto';
 
 
 @Injectable()
 export class UserMapper extends BaseMapper<
     User,
-    UserResponseDto
+    UserResponseDto,
+    UserListItemDto
 > {
+
+    /**
+     * Transformation basique utilisateur (BasicUserDto)
+     */
+    toBasic(user: Pick<User, 'id' | 'firstName' | 'lastName' | 'email'>): BasicUserDto {
+        return {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+        };
+    }
 
     /**
      * Transformation complète utilisateur
@@ -76,18 +90,4 @@ export class UserMapper extends BaseMapper<
             createdAt: user.createdAt,
         };
     }
-
-
-    /**
-     * Transformation d'une liste utilisateur
-     */
-    toList(
-        users: User[],
-    ): UserListItemDto[] {
-
-        return users.map(
-            (user) =>
-                this.toListItem(user),
-        );
-    }
-}
+}

@@ -5,41 +5,22 @@ import {
     MembershipStatus,
 } from '@prisma/client';
 
-export class MembershipUserResponseDto {
-    @ApiProperty()
-    id: string;
-
-    @ApiProperty()
-    firstName: string;
-
-    @ApiProperty()
-    lastName: string;
-
-    @ApiProperty()
-    email: string;
-}
-
-export class MembershipTontineResponseDto {
-    @ApiProperty()
-    id: string;
-
-    @ApiProperty()
-    name: string;
-}
+import { BasicUserDto } from '../../../common/dto/responses/basic-user.dto';
+import { BasicTontineDto } from '../../../common/dto/responses/basic-tontine.dto';
 
 export class MembershipResponseDto {
     @ApiProperty()
     id: string;
 
     @ApiProperty({
-        type: MembershipUserResponseDto,
+        type: () => BasicUserDto,
     })
-    user: MembershipUserResponseDto;
+    user: BasicUserDto;
 
     @ApiProperty({
-        type: MembershipTontineResponseDto,
+        type: () => BasicTontineDto,
     })
-    tontine: MembershipTontineResponseDto;
+    tontine: BasicTontineDto;
 
     @ApiProperty({
         enum: MembershipRole,

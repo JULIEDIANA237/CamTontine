@@ -14,7 +14,7 @@ import { UsersModule } from './users/users.module';
 import { TontinesModule } from './tontines/tontines.module';
 import { MembershipsModule } from './memberships/memberships.module';
 import { InvitationsModule } from './invitations/invitations.module';
-import { ContributionCyclesModule } from './contribution-cycles/contribution-cycles.module';
+import { CyclesModule } from './cycles/cycles.module';
 import { ContributionsModule } from './contributions/contributions.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PayoutsModule } from './payouts/payouts.module';
@@ -39,7 +39,7 @@ import { FilesModule } from './files/files.module';
     TontinesModule,
     MembershipsModule,
     InvitationsModule,
-    ContributionCyclesModule,
+    CyclesModule,
     ContributionsModule,
     PaymentsModule,
     PayoutsModule,

@@ -193,10 +193,12 @@ model Tontine {
 
   invitations Invitation[]
 
-  contributionPeriods ContributionPeriod[]
-  cycles Cycle[]
+  cycles       Cycle[]
   payoutOrders PayoutOrder[]
   reports      Report[]
+
+  @@index([status])
+  @@index([creatorId])
 }
 
 model Membership {
@@ -230,6 +232,7 @@ model Membership {
   @@unique([userId, tontineId])
   @@index([userId])
   @@index([tontineId])
+  @@index([status])
 }
 
 model Invitation {
@@ -255,12 +258,12 @@ model Invitation {
 
   tontine Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
 
-  invitedBy User @relation(fields: [invitedById], references: [id])
+  invitedBy User @relation(fields: [invitedById], references: [id], onDelete: Restrict)
 
   @@index([token])
 }
 
-enum ContributionPeriodStatus {
+enum CycleStatus {
   PENDING
 
   OPEN
@@ -270,32 +273,10 @@ enum ContributionPeriodStatus {
   CANCELLED
 }
 
-model ContributionPeriod {
+model Cycle {
   id String @id @default(uuid())
 
   tontineId String
-
-  number Int
-
-  label String
-
-  dueDate DateTime
-
-  month Int?
-
-  year Int?
-
-  sequence Int
-
-  openedAt DateTime?
-
-  closedAt DateTime?
-
-  status ContributionPeriodStatus @default(PENDING)
-
-  createdAt DateTime @default(now())
-
-  updatedAt DateTime @updatedAt
 
   tontine Tontine @relation(fields: [tontineId], references: [id], onDelete: Cascade)
 
@@ -303,8 +284,36 @@ model ContributionPeriod {
 
   payout Payout?
 
+  number Int
+
+  name String?
+
+  startDate DateTime
+
+  dueDate DateTime
+
+  expectedAmount Decimal @db.Decimal(12, 2)
+
+  collectedAmount Decimal     @default(0) @db.Decimal(12, 2)
+  status          CycleStatus @default(PENDING)
+
+  isCurrent Boolean @default(false)
+
+  openedAt DateTime?
+
+  closedAt  DateTime?
+  createdAt DateTime  @default(now())
+
+  updatedAt DateTime @updatedAt
+
   @@unique([tontineId, number])
   @@index([tontineId])
+  @@index([status])
+  @@index([startDate])
+  @@index([dueDate])
+  @@index([isCurrent])
+  @@index([tontineId, status])
+  @@index([tontineId, isCurrent])
 }
 
 enum ContributionStatus {
@@ -322,7 +331,7 @@ model Contribution {
 
   membershipId String
 
-  contributionPeriodId String
+  cycleId String
 
   amount Decimal @db.Decimal(12, 2)
 
@@ -332,21 +341,25 @@ model Contribution {
 
   validatedAt DateTime?
 
+  validatedById String?
+
   createdAt DateTime @default(now())
 
   updatedAt DateTime @updatedAt
 
   membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
 
-  contributionPeriod ContributionPeriod @relation(fields: [contributionPeriodId], references: [id], onDelete: Cascade)
+  cycle Cycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
 
   payment Payment?
 
   penalty Penalty?
 
-  @@unique([membershipId, contributionPeriodId])
+  @@unique([membershipId, cycleId])
   @@index([membershipId])
-  @@index([contributionPeriodId])
+  @@index([cycleId])
+  @@index([status])
+  @@index([paidAt])
 }
 
 enum PaymentMethod {
@@ -378,6 +391,10 @@ model Payment {
 
   transactionReference String?
 
+  externalReference String?
+
+  receiptNumber String?
+
   amount Decimal @db.Decimal(12, 2)
 
   status PaymentStatus @default(PENDING)
@@ -387,6 +404,8 @@ model Payment {
   createdAt DateTime @default(now())
 
   contribution Contribution @relation(fields: [contributionId], references: [id], onDelete: Cascade)
+
+  @@index([status])
 }
 
 enum PenaltyStatus {
@@ -447,7 +466,7 @@ enum BeneficiaryTurnStatus {
 model Payout {
   id String @id @default(uuid())
 
-  contributionPeriodId String @unique
+  cycleId String @unique
 
   beneficiaryMembershipId String
 
@@ -463,9 +482,11 @@ model Payout {
 
   updatedAt DateTime @updatedAt
 
-  contributionPeriod ContributionPeriod @relation(fields: [contributionPeriodId], references: [id], onDelete: Cascade)
+  cycle Cycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
 
-  beneficiary Membership @relation(fields: [beneficiaryMembershipId], references: [id])
+  beneficiary Membership @relation(fields: [beneficiaryMembershipId], references: [id], onDelete: Restrict)
+
+  @@index([status])
 }
 
 enum NotificationChannel {
@@ -501,11 +522,15 @@ model Notification {
 
   sentAt DateTime?
 
+  readAt DateTime?
+
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([status])
+  @@index([channel])
 }
 
 model AuditLog {
@@ -527,9 +552,11 @@ model AuditLog {
 
   userAgent String?
 
+  success Boolean @default(true)
+
   createdAt DateTime @default(now())
 
-  actor User @relation(fields: [actorId], references: [id])
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
 
   @@index([actorId])
 }
@@ -543,6 +570,8 @@ enum ReportType {
 model Report {
   id String @id @default(uuid())
 
+  name String
+
   tontineId String
 
   type ReportType
@@ -553,59 +582,15 @@ model Report {
 
   generatedAt DateTime @default(now())
 
-  tontine Tontine @relation(fields: [tontineId], references: [id])
+  tontine Tontine @relation(fields: [tontineId], references: [id], onDelete: Restrict)
 
-  file File @relation(fields: [fileId], references: [id])
+  file File @relation(fields: [fileId], references: [id], onDelete: Restrict)
 
-  createdBy User @relation(fields: [createdById], references: [id])
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
 }
 
 enum Frequency {
   MONTHLY
   BIMONTHLY
   QUARTERLY
-}
-
-enum CycleStatus {
-  DRAFT
-  OPEN
-  CLOSED
-  CANCELLED
-}
-
-model Cycle {
-  id String @id @default(cuid())
-
-  cycleNumber Int
-
-  startDate DateTime
-
-  endDate DateTime
-
-  expectedAmount Decimal @db.Decimal(12,2)
-
-  collectedAmount Decimal @default(0) @db.Decimal(12,2)
-
-  status ContributionCycleStatus @default(DRAFT)
-
-  openedAt DateTime?
-
-  closedAt DateTime?
-
-  createdAt DateTime @default(now())
-
-  updatedAt DateTime @updatedAt
-
-  tontineId String
-
-  tontine Tontine
-      @relation(fields:[tontineId], references:[id], onDelete:Cascade)
-
-  contributions Contribution[]
-
-  @@unique([tontineId, cycleNumber])
-
-  @@index([tontineId])
-
-  @@index([status])
 }

@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
 
-import { Prisma } from '@prisma/client';
+import { MembershipRole, MembershipStatus, Prisma } from '@prisma/client';
 
 import { BaseMapper } from '../../common/mappers';
 
 import { MembershipResponseDto } from '../dto/responses/membership-response.dto';
 import { MembershipListItemDto } from '../dto/responses/membership-list-item.dto';
+import { BasicMembershipDto } from '../../common/dto/responses/basic-membership.dto';
 
 
 export type MembershipWithRelations =
@@ -33,9 +34,28 @@ export type MembershipWithRelations =
 @Injectable()
 export class MembershipMapper extends BaseMapper<
   MembershipWithRelations,
-  MembershipResponseDto
+  MembershipResponseDto,
+  MembershipListItemDto
 > {
 
+  /**
+   * Transformation basique adhésion (BasicMembershipDto)
+   */
+  toBasic(membership: {
+    id: string;
+    userId: string;
+    tontineId: string;
+    role: MembershipRole;
+    status: MembershipStatus;
+  }): BasicMembershipDto {
+    return {
+      id: membership.id,
+      userId: membership.userId,
+      tontineId: membership.tontineId,
+      role: membership.role,
+      status: membership.status,
+    };
+  }
 
   /**
    * Transformation complète d'une Membership
@@ -140,18 +160,4 @@ export class MembershipMapper extends BaseMapper<
     };
   }
 
-
-
-  /**
-   * Transformation d'une collection
-   */
-  toList(
-    memberships: MembershipWithRelations[],
-  ): MembershipListItemDto[] {
-
-    return memberships.map(
-      (membership) =>
-        this.toListItem(membership),
-    );
-  }
 }

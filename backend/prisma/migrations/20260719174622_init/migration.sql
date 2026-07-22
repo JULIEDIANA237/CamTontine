@@ -26,7 +26,7 @@ CREATE TYPE "MembershipStatus" AS ENUM ('INVITED', 'ACTIVE', 'SUSPENDED', 'LEFT'
 CREATE TYPE "InvitationStatus" AS ENUM ('PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED');
 
 -- CreateEnum
-CREATE TYPE "ContributionPeriodStatus" AS ENUM ('PENDING', 'OPEN', 'CLOSED', 'CANCELLED');
+CREATE TYPE "CycleStatus" AS ENUM ('PENDING', 'OPEN', 'CLOSED', 'CANCELLED');
 
 -- CreateEnum
 CREATE TYPE "ContributionStatus" AS ENUM ('PENDING', 'PAID', 'VALIDATED', 'CANCELLED');
@@ -81,7 +81,7 @@ CREATE TABLE "User" (
 -- CreateTable
 CREATE TABLE "RefreshToken" (
     "id" TEXT NOT NULL,
-    "token" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "revokedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -166,33 +166,36 @@ CREATE TABLE "Invitation" (
 );
 
 -- CreateTable
-CREATE TABLE "ContributionPeriod" (
+CREATE TABLE "Cycle" (
     "id" TEXT NOT NULL,
     "tontineId" TEXT NOT NULL,
     "number" INTEGER NOT NULL,
-    "label" TEXT NOT NULL,
+    "sequence" INTEGER NOT NULL DEFAULT 1,
+    "name" TEXT,
+    "startDate" TIMESTAMP(3) NOT NULL,
     "dueDate" TIMESTAMP(3) NOT NULL,
-    "month" INTEGER,
-    "year" INTEGER,
-    "sequence" INTEGER NOT NULL,
+    "expectedAmount" DECIMAL(12,2) NOT NULL,
+    "collectedAmount" DECIMAL(12,2) NOT NULL DEFAULT 0,
+    "status" "CycleStatus" NOT NULL DEFAULT 'PENDING',
+    "isCurrent" BOOLEAN NOT NULL DEFAULT false,
     "openedAt" TIMESTAMP(3),
     "closedAt" TIMESTAMP(3),
-    "status" "ContributionPeriodStatus" NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "ContributionPeriod_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Cycle_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "Contribution" (
     "id" TEXT NOT NULL,
     "membershipId" TEXT NOT NULL,
-    "contributionPeriodId" TEXT NOT NULL,
+    "cycleId" TEXT NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "status" "ContributionStatus" NOT NULL DEFAULT 'PENDING',
     "paidAt" TIMESTAMP(3),
     "validatedAt" TIMESTAMP(3),
+    "validatedById" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -205,6 +208,8 @@ CREATE TABLE "Payment" (
     "contributionId" TEXT NOT NULL,
     "method" "PaymentMethod" NOT NULL,
     "transactionReference" TEXT,
+    "externalReference" TEXT,
+    "receiptNumber" TEXT,
     "amount" DECIMAL(12,2) NOT NULL,
     "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
     "paidAt" TIMESTAMP(3),
@@ -241,7 +246,7 @@ CREATE TABLE "PayoutOrder" (
 -- CreateTable
 CREATE TABLE "Payout" (
     "id" TEXT NOT NULL,
-    "contributionPeriodId" TEXT NOT NULL,
+    "cycleId" TEXT NOT NULL,
     "beneficiaryMembershipId" TEXT NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "status" "PayoutStatus" NOT NULL DEFAULT 'PENDING',
@@ -262,6 +267,7 @@ CREATE TABLE "Notification" (
     "channel" "NotificationChannel" NOT NULL,
     "status" "NotificationStatus" NOT NULL DEFAULT 'PENDING',
     "sentAt" TIMESTAMP(3),
+    "readAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
@@ -278,6 +284,7 @@ CREATE TABLE "AuditLog" (
     "after" JSONB,
     "ipAddress" TEXT,
     "userAgent" TEXT,
+    "success" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
@@ -286,6 +293,7 @@ CREATE TABLE "AuditLog" (
 -- CreateTable
 CREATE TABLE "Report" (
     "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
     "tontineId" TEXT NOT NULL,
     "type" "ReportType" NOT NULL,
     "fileId" TEXT NOT NULL,
@@ -302,16 +310,25 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_phone_key" ON "User"("phone");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
+CREATE UNIQUE INDEX "RefreshToken_tokenHash_key" ON "RefreshToken"("tokenHash");
 
 -- CreateIndex
 CREATE INDEX "RefreshToken_userId_idx" ON "RefreshToken"("userId");
+
+-- CreateIndex
+CREATE INDEX "Tontine_status_idx" ON "Tontine"("status");
+
+-- CreateIndex
+CREATE INDEX "Tontine_creatorId_idx" ON "Tontine"("creatorId");
 
 -- CreateIndex
 CREATE INDEX "Membership_userId_idx" ON "Membership"("userId");
 
 -- CreateIndex
 CREATE INDEX "Membership_tontineId_idx" ON "Membership"("tontineId");
+
+-- CreateIndex
+CREATE INDEX "Membership_status_idx" ON "Membership"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Membership_userId_tontineId_key" ON "Membership"("userId", "tontineId");
@@ -323,22 +340,49 @@ CREATE UNIQUE INDEX "Invitation_token_key" ON "Invitation"("token");
 CREATE INDEX "Invitation_token_idx" ON "Invitation"("token");
 
 -- CreateIndex
-CREATE INDEX "ContributionPeriod_tontineId_idx" ON "ContributionPeriod"("tontineId");
+CREATE INDEX "Cycle_tontineId_idx" ON "Cycle"("tontineId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ContributionPeriod_tontineId_number_key" ON "ContributionPeriod"("tontineId", "number");
+CREATE INDEX "Cycle_status_idx" ON "Cycle"("status");
+
+-- CreateIndex
+CREATE INDEX "Cycle_startDate_idx" ON "Cycle"("startDate");
+
+-- CreateIndex
+CREATE INDEX "Cycle_dueDate_idx" ON "Cycle"("dueDate");
+
+-- CreateIndex
+CREATE INDEX "Cycle_isCurrent_idx" ON "Cycle"("isCurrent");
+
+-- CreateIndex
+CREATE INDEX "Cycle_tontineId_status_idx" ON "Cycle"("tontineId", "status");
+
+-- CreateIndex
+CREATE INDEX "Cycle_tontineId_isCurrent_idx" ON "Cycle"("tontineId", "isCurrent");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Cycle_tontineId_number_key" ON "Cycle"("tontineId", "number");
 
 -- CreateIndex
 CREATE INDEX "Contribution_membershipId_idx" ON "Contribution"("membershipId");
 
 -- CreateIndex
-CREATE INDEX "Contribution_contributionPeriodId_idx" ON "Contribution"("contributionPeriodId");
+CREATE INDEX "Contribution_cycleId_idx" ON "Contribution"("cycleId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Contribution_membershipId_contributionPeriodId_key" ON "Contribution"("membershipId", "contributionPeriodId");
+CREATE INDEX "Contribution_status_idx" ON "Contribution"("status");
+
+-- CreateIndex
+CREATE INDEX "Contribution_paidAt_idx" ON "Contribution"("paidAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Contribution_membershipId_cycleId_key" ON "Contribution"("membershipId", "cycleId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Payment_contributionId_key" ON "Payment"("contributionId");
+
+-- CreateIndex
+CREATE INDEX "Payment_status_idx" ON "Payment"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Penalty_contributionId_key" ON "Penalty"("contributionId");
@@ -350,10 +394,19 @@ CREATE UNIQUE INDEX "PayoutOrder_tontineId_sequence_key" ON "PayoutOrder"("tonti
 CREATE UNIQUE INDEX "PayoutOrder_tontineId_membershipId_key" ON "PayoutOrder"("tontineId", "membershipId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Payout_contributionPeriodId_key" ON "Payout"("contributionPeriodId");
+CREATE UNIQUE INDEX "Payout_cycleId_key" ON "Payout"("cycleId");
+
+-- CreateIndex
+CREATE INDEX "Payout_status_idx" ON "Payout"("status");
 
 -- CreateIndex
 CREATE INDEX "Notification_userId_idx" ON "Notification"("userId");
+
+-- CreateIndex
+CREATE INDEX "Notification_status_idx" ON "Notification"("status");
+
+-- CreateIndex
+CREATE INDEX "Notification_channel_idx" ON "Notification"("channel");
 
 -- CreateIndex
 CREATE INDEX "AuditLog_actorId_idx" ON "AuditLog"("actorId");
@@ -380,13 +433,13 @@ ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_tontineId_fkey" FOREIGN KEY 
 ALTER TABLE "Invitation" ADD CONSTRAINT "Invitation_invitedById_fkey" FOREIGN KEY ("invitedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ContributionPeriod" ADD CONSTRAINT "ContributionPeriod_tontineId_fkey" FOREIGN KEY ("tontineId") REFERENCES "Tontine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Cycle" ADD CONSTRAINT "Cycle_tontineId_fkey" FOREIGN KEY ("tontineId") REFERENCES "Tontine"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Contribution" ADD CONSTRAINT "Contribution_membershipId_fkey" FOREIGN KEY ("membershipId") REFERENCES "Membership"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Contribution" ADD CONSTRAINT "Contribution_contributionPeriodId_fkey" FOREIGN KEY ("contributionPeriodId") REFERENCES "ContributionPeriod"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Contribution" ADD CONSTRAINT "Contribution_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "Cycle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Payment" ADD CONSTRAINT "Payment_contributionId_fkey" FOREIGN KEY ("contributionId") REFERENCES "Contribution"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -404,7 +457,7 @@ ALTER TABLE "PayoutOrder" ADD CONSTRAINT "PayoutOrder_membershipId_fkey" FOREIGN
 ALTER TABLE "PayoutOrder" ADD CONSTRAINT "PayoutOrder_exchangedWithOrderId_fkey" FOREIGN KEY ("exchangedWithOrderId") REFERENCES "PayoutOrder"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Payout" ADD CONSTRAINT "Payout_contributionPeriodId_fkey" FOREIGN KEY ("contributionPeriodId") REFERENCES "ContributionPeriod"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Payout" ADD CONSTRAINT "Payout_cycleId_fkey" FOREIGN KEY ("cycleId") REFERENCES "Cycle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Payout" ADD CONSTRAINT "Payout_beneficiaryMembershipId_fkey" FOREIGN KEY ("beneficiaryMembershipId") REFERENCES "Membership"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
