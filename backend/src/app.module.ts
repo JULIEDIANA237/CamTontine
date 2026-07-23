@@ -17,6 +17,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { CyclesModule } from './cycles/cycles.module';
 import { ContributionsModule } from './contributions/contributions.module';
 import { PaymentsModule } from './payments/payments.module';
+import { PenaltiesModule } from './penalties/penalties.module';
 import { PayoutsModule } from './payouts/payouts.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
@@ -42,6 +43,7 @@ import { FilesModule } from './files/files.module';
     CyclesModule,
     ContributionsModule,
     PaymentsModule,
+    PenaltiesModule,
     PayoutsModule,
     NotificationsModule,
     ReportsModule,
