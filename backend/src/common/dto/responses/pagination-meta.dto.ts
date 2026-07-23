@@ -8,8 +8,14 @@ export class PaginationMetaDto {
     limit: number;
 
     @ApiProperty()
-    total: number;
+    totalItems: number;
 
     @ApiProperty()
     totalPages: number;
+
+    @ApiProperty()
+    hasNextPage: boolean;
+
+    @ApiProperty()
+    hasPreviousPage: boolean;
 }

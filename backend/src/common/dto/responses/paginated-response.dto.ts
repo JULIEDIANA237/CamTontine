@@ -4,8 +4,13 @@ import { PaginationMetaDto } from './pagination-meta.dto';
 
 export class PaginatedResponseDto<T> {
     @ApiProperty({
-        isArray: true,
+        example: true,
     })
+    success: true;
+
+    @ApiProperty()
+    message: string;
+
     data: T[];
 
     @ApiProperty({
